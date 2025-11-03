@@ -12,18 +12,29 @@ class AuthController extends Controller
 {
     public function login(Request $request)
     {
-        $credentials = $request->validate([
-            'username' => 'required|string',
-            'password' => 'required|string|min:12|max:18',
+        // Validate that either username or email is provided
+        $request->validate([
+            'password' => 'required|string|min:8|max:18',
         ]);
 
-        Log::info('Login attempt with credentials:', [
-            'username' => $credentials['username'],
+        // Check if username or email was provided
+        $loginField = $request->filled('username') ? 'username' : 'email';
+        $loginValue = $request->input($loginField);
+
+        // Validate the specific field that was provided
+        if (!$loginValue) {
+            return back()->withErrors(['error' => 'Please provide either a username or email address.']);
+        }
+
+        Log::info('Login attempt:', [
+            'login_field' => $loginField,
+            'login_value' => $loginValue,
         ]);
 
-        $user = User::where('username', $credentials['username'])->first();
+        // Find user by username or email
+        $user = User::where($loginField, $loginValue)->first();
 
-        if ($user && Hash::check($credentials['password'], $user->password)) {
+        if ($user && Hash::check($request->password, $user->password)) {
             Log::info('Login successful:', [
                 'user_id' => $user->id,
             ]);
@@ -31,7 +42,7 @@ class AuthController extends Controller
             return redirect()->route('registrant.dashboard', ['user_id' => $user->id]);
         }
 
-        Log::warning('Login failed for username: ' . $credentials['username']);
+        Log::warning('Login failed for ' . $loginField . ': ' . $loginValue);
         return back()->withErrors(['error' => 'Invalid credentials. Please try again.']);
     }
 }
