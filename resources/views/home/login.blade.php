@@ -73,7 +73,7 @@
         <div class="justify-content-center row">
           <div class="col-lg-12 col-xl-8">
 
-            <form action="{{ route ('login.attempt') }}" method="POST">
+            <form action="{{ route ('login.attempt') }}" method="POST" id="loginForm">
               @csrf
           <label class="form-label d-flex d-sm-flex justify-content-start justify-content-sm-start"
           for="username">Username</label>
@@ -85,13 +85,13 @@
                 <label
                 class="form-label d-flex d-sm-flex justify-content-start justify-content-sm-start" for="emailadd">E-mail
                 Address</label>
-                <input class="border border-dark-subtle mb-4 form-control" type="text" id="emailadd"
+                <input class="border border-dark-subtle mb-4 form-control" type="email" id="emailadd"
                 name="email" placeholder="JohnDoe@gmail.com" inputmode="email">
                 <label
                 class="form-label d-flex d-sm-flex justify-content-start justify-content-sm-start"
                 for="password">Password</label>
                 <input class="border border-dark-subtle mb-4 form-control"
-                type="password" id="password" name="password" placeholder="Confirm password" required="" minlength="8" maxlength="18">
+                type="password" id="password" name="password" placeholder="Password" required minlength="8" maxlength="18">
               <div class="row mb-3">
                 <div class="col">
                  <button class="btn btn-primary w-100 mt-3" type="submit">Login</button>
@@ -134,19 +134,20 @@
             // Check if username field has any non-whitespace text
             const hasUsernameText = usernameInput.value.trim().length > 0;
 
-            // If username has text, disable the email field
+            // If username has text, disable the email field and remove its required attribute
             emailInput.disabled = hasUsernameText;
             
-            // Clear the email field when it gets disabled
+            // Dynamically manage required attribute
             if (hasUsernameText) {
+                emailInput.removeAttribute('required');
                 emailInput.value = '';
-            }
-            
-            // Add visual feedback
-            if (hasUsernameText) {
                 emailInput.classList.add('text-muted');
                 emailInput.placeholder = 'Username selected - email disabled';
             } else {
+                // Only require email if username is empty
+                if (usernameInput.value.trim().length === 0) {
+                    emailInput.setAttribute('required', '');
+                }
                 emailInput.classList.remove('text-muted');
                 emailInput.placeholder = 'JohnDoe@gmail.com';
             }
@@ -156,19 +157,20 @@
             // Check if email field has any non-whitespace text
             const hasEmailText = emailInput.value.trim().length > 0;
 
-            // If email has text, disable the username field
+            // If email has text, disable the username field and remove its required attribute
             usernameInput.disabled = hasEmailText;
             
-            // Clear the username field when it gets disabled
+            // Dynamically manage required attribute
             if (hasEmailText) {
+                usernameInput.removeAttribute('required');
                 usernameInput.value = '';
-            }
-            
-            // Add visual feedback
-            if (hasEmailText) {
                 usernameInput.classList.add('text-muted');
                 usernameInput.placeholder = 'Email selected - username disabled';
             } else {
+                // Only require username if email is empty
+                if (emailInput.value.trim().length === 0) {
+                    usernameInput.setAttribute('required', '');
+                }
                 usernameInput.classList.remove('text-muted');
                 usernameInput.placeholder = 'Username';
             }
@@ -178,6 +180,10 @@
         usernameInput.addEventListener('input', toggleEmailDisabledState);
         emailInput.addEventListener('input', toggleUsernameDisabledState);
 
+        // Set initial state - require at least one field
+        usernameInput.setAttribute('required', '');
+        emailInput.setAttribute('required', '');
+        
         // Run the checks once on page load to set the initial state
         toggleEmailDisabledState();
         toggleUsernameDisabledState();
