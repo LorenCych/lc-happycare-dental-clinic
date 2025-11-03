@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
-    <title>Dental Clinic Landing Page</title>
+    <title>How It Works - LC Happy Care Dental Clinic</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="assets/css/styles.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.css">
@@ -67,7 +67,9 @@
         <div class="container">
             <div class="text-center p-4 p-lg-5">
                 <p class="fw-bold mb-2">LC HAPPY CARE DENTAL CLINIC</p>
-                <h1 class="fw-bold text-dark mb-4">Don't let dental problems keep you from smiling</h1><button class="btn btn-light fs-6 me-2 mt-2 px-4 py-2" type="button">Dental Services Overview</button><a class="btn btn-primary fs-6 mt-2 px-4 py-2" role="button" href="signup.html">Book an Appointment</a>
+                <h1 class="fw-bold text-dark mb-4">Don't let dental problems keep you from smiling</h1>
+                <a class="btn btn-light fs-6 me-2 mt-2 px-4 py-2" type="button" href="{{ route('home.services') }}">Dental Services Overview</a>
+                <a class="btn btn-primary fs-6 mt-2 px-4 py-2" role="button" href="{{ route('login') }}">Book an Appointment</a>
             </div>
         </div>
     </section>

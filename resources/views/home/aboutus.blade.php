@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
-  <title>Dental Clinic Landing Page</title>
+  <title>About Us - LC Happy Care Dental Clinic</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="/assets/css/styles.min.css?h=603e8133128ec3586bcc20713be67e15">
 </head>
@@ -237,9 +237,9 @@
     <div class="container">
       <div class="text-center p-4 p-lg-5">
         <p class="fw-bold text-white mb-2">LC HAPPY CARE DENTAL CLINIC</p>
-        <h1 class="fw-bold mb-4">Expert dental care is just one click away—make your appointment now!</h1><button
-          class="btn btn-light fs-6 me-2 mt-2 px-4 py-2" type="button">Dental Services Overview</button><a
-          class="btn btn-primary fs-6 mt-2 px-4 py-2" role="button" href="/signup.html">Book an Appointment</a>
+        <h1 class="fw-bold mb-4">Expert dental care is just one click away—make your appointment now!</h1>
+        <a class="btn btn-light fs-6 me-2 mt-2 px-4 py-2" role="button" href="{{ route('home.services') }}">Dental Services Overview</a>
+        <a class="btn btn-primary fs-6 mt-2 px-4 py-2" role="button" href="{{ route('login') }}">Book an Appointment</a>
       </div>
     </div>
   </section><!-- End: Banner Clean -->
