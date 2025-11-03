@@ -25,7 +25,7 @@
             class="col-md-10 col-xl-8 text-center d-flex d-sm-flex d-md-flex justify-content-center align-items-center justify-content-md-start align-items-md-center justify-content-xl-center mx-auto">
             <div class="mb-3">
               <h1 class="text-uppercase fw-bold mb-3">Welcome to LC Happy Care Clinic!</h1>
-              <p class="mb-4">Your smile is our priority. Book your appointment bow and experience happy, caring dental
+              <p class="mb-4">Your smile is our priority. Book your appointment now and experience happy, caring dental
                 services with our professional team!</p>
               <div class="row">
                 <div
