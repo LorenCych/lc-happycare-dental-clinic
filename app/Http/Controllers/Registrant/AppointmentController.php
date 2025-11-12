@@ -267,6 +267,11 @@ class AppointmentController extends Controller
             return back()->withErrors(['appointment_time' => 'Appointment time must be between 8:00 AM and 5:00 PM (clinic hours).'])->withInput();
         }
 
+        // Validate appointment is not in the past
+        if ($appointmentDateTime->isPast() || $appointmentDateTime->equalTo(now())) {
+            return back()->withErrors(['appointment_time' => 'Appointment time cannot be in the past or current time. Please select a future date and time.'])->withInput();
+        }
+
         $validated['status'] = 'pending';
         $serviceIds = $validated['service_id'];
         unset($validated['service_id']);
@@ -373,6 +378,11 @@ class AppointmentController extends Controller
         
         if ($timeInMinutes < 480 || $timeInMinutes > 1020) { // 8:00 AM = 480 minutes, 5:00 PM = 1020 minutes
             return back()->withErrors(['new_time' => 'Appointment time must be between 8:00 AM and 5:00 PM (clinic hours).'])->withInput();
+        }
+
+        // Validate appointment is not in the past
+        if ($appointmentDateTime->isPast() || $appointmentDateTime->equalTo(now())) {
+            return back()->withErrors(['new_time' => 'Appointment time cannot be in the past or current time. Please select a future date and time.'])->withInput();
         }
 
         // Store the old schedule for logging/notification

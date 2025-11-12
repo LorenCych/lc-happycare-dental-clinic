@@ -7,6 +7,19 @@
   <title>Previous Appointments - LC Happy Care Dental Clinic</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="/assets/css/styles.min.css?h=603e8133128ec3586bcc20713be67e15">
+  <style>
+    .patient-name-link {
+      color: #daa520;
+      text-decoration: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: color 0.3s ease;
+    }
+    .patient-name-link:hover {
+      color: #0066cc;
+      text-decoration: underline;
+    }
+  </style>
 </head>
 
 <body>
@@ -86,7 +99,15 @@
                           <div class="row gy-2">
                             <div class="col-12 col-md-4">
                               <h5 class="text-black-50 mb-1"><strong>Patient</strong></h5>
-                              <p class="mb-1"><strong>{{ $appointment->appointee_name }}</strong></p>
+                              <p class="mb-1">
+                                @if($appointment->user_id)
+                                  <a href="{{ route('dentist.patient.view-record', $appointment->user_id) }}" class="patient-name-link">
+                                    <strong>{{ $appointment->appointee_name }}</strong>
+                                  </a>
+                                @else
+                                  <strong>{{ $appointment->appointee_name }}</strong>
+                                @endif
+                              </p>
                             </div>
                             <div class="col">
                               <h5 class="text-black-50 mb-1"><strong>Treatment/Service</strong></h5>

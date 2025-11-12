@@ -282,6 +282,29 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('appointmentForm').submit();
   });
 
+  // Date validation to prevent past dates
+  const dateInput = document.querySelector('input[name="appointment_sched"]');
+  if (dateInput) {
+    // Set minimum date to today
+    const today = new Date().toISOString().split('T')[0];
+    dateInput.setAttribute('min', today);
+    
+    dateInput.addEventListener('change', function() {
+      const timeField = document.getElementById('appointment_time');
+      
+      // If time is already selected, validate the combined date/time
+      if (timeField && timeField.value) {
+        const selectedDateTime = new Date(this.value + ' ' + timeField.value);
+        const now = new Date();
+        
+        if (selectedDateTime <= now) {
+          alert('Appointment time cannot be in the past or current time. Please select a future date and time.');
+          timeField.value = ''; // Clear the time
+        }
+      }
+    });
+  }
+
   // Time validation for clinic hours (8:00 AM - 5:00 PM)
   const timeInput = document.getElementById('appointment_time');
   if (timeInput) {
@@ -296,6 +319,21 @@ document.addEventListener('DOMContentLoaded', function() {
         alert('Please select a time between 8:00 AM and 5:00 PM. Our clinic operates during these hours only.');
         this.value = ''; // Clear the invalid time
         this.focus(); // Focus back to the input
+        return;
+      }
+
+      // Check if the selected date and time is in the past or current time
+      const dateInput = document.querySelector('input[name="appointment_sched"]');
+      if (dateInput && dateInput.value) {
+        const selectedDate = dateInput.value;
+        const selectedDateTime = new Date(selectedDate + ' ' + selectedTime);
+        const now = new Date();
+        
+        if (selectedDateTime <= now) {
+          alert('Appointment time cannot be in the past or current time. Please select a future date and time.');
+          this.value = ''; // Clear the invalid time
+          this.focus();
+        }
       }
     });
   }
@@ -303,7 +341,9 @@ document.addEventListener('DOMContentLoaded', function() {
   // Form submission validation
   document.getElementById('appointmentForm').addEventListener('submit', function(e) {
     const timeField = document.getElementById('appointment_time');
-    if (timeField && timeField.value) {
+    const dateField = document.querySelector('input[name="appointment_sched"]');
+    
+    if (timeField && timeField.value && dateField && dateField.value) {
       const selectedTime = timeField.value;
       const [hours, minutes] = selectedTime.split(':').map(Number);
       const timeInMinutes = hours * 60 + minutes;
@@ -313,6 +353,17 @@ document.addEventListener('DOMContentLoaded', function() {
       if (timeInMinutes < openTime || timeInMinutes > closeTime) {
         e.preventDefault();
         alert('Please select a time between 8:00 AM and 5:00 PM before submitting.');
+        timeField.focus();
+        return false;
+      }
+
+      // Check if the selected date and time is in the past or current time
+      const selectedDateTime = new Date(dateField.value + ' ' + selectedTime);
+      const now = new Date();
+      
+      if (selectedDateTime <= now) {
+        e.preventDefault();
+        alert('Appointment time cannot be in the past or current time. Please select a future date and time.');
         timeField.focus();
         return false;
       }

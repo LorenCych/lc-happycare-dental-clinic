@@ -585,4 +585,85 @@ class AppointmentController extends Controller
         
         return view('dentist.appointments.previous-appointments', compact('dentist', 'appointments'));
     }
+
+    public function viewPatientRecord($userId)
+    {
+        $dentistId = session('admin_id');
+        if (!$dentistId) {
+            return redirect()->route('home.admin-login')->with('error', 'Authentication required');
+        }
+
+        $dentist = \App\Models\Admin::find($dentistId);
+        if (!$dentist) {
+            return redirect()->route('home.admin-login')->with('error', 'Dentist not found');
+        }
+
+        // Get the patient/user
+        $patient = \App\Models\User::find($userId);
+        if (!$patient) {
+            return redirect()->back()->with('error', 'Patient not found');
+        }
+
+        // Get all appointments for this patient where the logged-in dentist is assigned
+        $appointments = \App\Models\Appointment::with(['services', 'user'])
+            ->where('user_id', $userId)
+            ->where('dentist_id', $dentistId)
+            ->orderBy('appointment_sched', 'desc')
+            ->get();
+
+        // Apply search filter if provided
+        if (request()->filled('search')) {
+            $searchTerm = request('search');
+            $appointments = $appointments->filter(function ($appointment) use ($searchTerm) {
+                $searchLower = strtolower($searchTerm);
+                
+                // Search in services
+                $servicesMatch = $appointment->services->contains(function ($service) use ($searchLower) {
+                    return strpos(strtolower($service->service_name), $searchLower) !== false;
+                });
+                
+                // Search in other services
+                $otherServicesMatch = $appointment->other_services && 
+                    strpos(strtolower($appointment->other_services), $searchLower) !== false;
+                
+                // Search in status
+                $statusMatch = strpos(strtolower($appointment->status), $searchLower) !== false;
+                
+                return $servicesMatch || $otherServicesMatch || $statusMatch;
+            });
+        }
+
+        // Apply date filter if provided
+        if (request()->filled('date_filter')) {
+            $dateFilter = request('date_filter');
+            $appointments = $appointments->filter(function ($appointment) use ($dateFilter) {
+                $appointmentDate = \Carbon\Carbon::parse($appointment->appointment_sched);
+                
+                switch ($dateFilter) {
+                    case 'today':
+                        return $appointmentDate->isToday();
+                    case 'this_week':
+                        return $appointmentDate->isCurrentWeek();
+                    case 'last_30_days':
+                        return $appointmentDate->greaterThanOrEqualTo(now()->subDays(30));
+                    case 'this_month':
+                        return $appointmentDate->isCurrentMonth();
+                    case 'this_year':
+                        return $appointmentDate->isCurrentYear();
+                    default:
+                        return true;
+                }
+            });
+        }
+
+        // Apply status filter if provided
+        if (request()->filled('status')) {
+            $statusFilter = request('status');
+            $appointments = $appointments->filter(function ($appointment) use ($statusFilter) {
+                return strtolower($appointment->status) === strtolower($statusFilter);
+            });
+        }
+
+        return view('dentist.patient.view-record', compact('dentist', 'patient', 'appointments'));
+    }
 }

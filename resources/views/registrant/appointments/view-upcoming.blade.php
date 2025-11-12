@@ -179,7 +179,7 @@
                                     <div class="col-md-6 mb-3">
                                       <label for="new_time{{ $appointment->id }}" class="form-label">New Time</label>
                                       <input type="time" class="form-control" id="new_time{{ $appointment->id }}" name="new_time" min="08:00" max="17:00" required>
-                                      <div class="form-text">Clinic hours: 8:00 AM - 5:00 PM</div>
+                                      <div class="form-text text-black-50">Clinic hours: 8:00 AM - 5:00 PM</div>
                                     </div>
                                   </div>
                                 </div>
@@ -237,7 +237,7 @@
           const timeInput = document.getElementById('new_time' + appointmentId);
           const dateInput = document.getElementById('new_date' + appointmentId);
           
-          if (timeInput && timeInput.value) {
+          if (timeInput && timeInput.value && dateInput && dateInput.value) {
             const selectedTime = timeInput.value;
             const [hours, minutes] = selectedTime.split(':').map(Number);
             const totalMinutes = hours * 60 + minutes;
@@ -249,6 +249,17 @@
             if (totalMinutes < clinicStart || totalMinutes > clinicEnd) {
               e.preventDefault();
               alert('Please select a time between 8:00 AM and 5:00 PM. Our clinic operates within these hours.');
+              timeInput.focus();
+              return false;
+            }
+
+            // Check if the selected date and time is in the past or current time
+            const selectedDateTime = new Date(dateInput.value + ' ' + selectedTime);
+            const now = new Date();
+            
+            if (selectedDateTime <= now) {
+              e.preventDefault();
+              alert('Appointment time cannot be in the past or current time. Please select a future date and time.');
               timeInput.focus();
               return false;
             }
@@ -265,6 +276,59 @@
               alert('Please select a future date for your appointment.');
               dateInput.focus();
               return false;
+            }
+          }
+        });
+      });
+
+      // Add real-time validation for time inputs in reschedule modals
+      const timeInputs = document.querySelectorAll('input[id^="new_time"]');
+      timeInputs.forEach(timeInput => {
+        timeInput.addEventListener('change', function() {
+          const appointmentId = this.id.replace('new_time', '');
+          const dateInput = document.getElementById('new_date' + appointmentId);
+          
+          if (this.value) {
+            const [hours, minutes] = this.value.split(':').map(Number);
+            const totalMinutes = hours * 60 + minutes;
+            const clinicStart = 8 * 60;
+            const clinicEnd = 17 * 60;
+            
+            if (totalMinutes < clinicStart || totalMinutes > clinicEnd) {
+              alert('Please select a time between 8:00 AM and 5:00 PM. Our clinic operates within these hours.');
+              this.value = '';
+              return;
+            }
+
+            // Check if combined date/time is in the past
+            if (dateInput && dateInput.value) {
+              const selectedDateTime = new Date(dateInput.value + ' ' + this.value);
+              const now = new Date();
+              
+              if (selectedDateTime <= now) {
+                alert('Appointment time cannot be in the past or current time. Please select a future date and time.');
+                this.value = '';
+              }
+            }
+          }
+        });
+      });
+
+      // Add real-time validation for date inputs in reschedule modals
+      const rescheduleDateInputs = document.querySelectorAll('input[id^="new_date"]');
+      rescheduleDateInputs.forEach(dateInput => {
+        dateInput.addEventListener('change', function() {
+          const appointmentId = this.id.replace('new_date', '');
+          const timeInput = document.getElementById('new_time' + appointmentId);
+          
+          // If time is already selected, validate combined date/time
+          if (timeInput && timeInput.value) {
+            const selectedDateTime = new Date(this.value + ' ' + timeInput.value);
+            const now = new Date();
+            
+            if (selectedDateTime <= now) {
+              alert('Appointment time cannot be in the past or current time. Please select a future date and time.');
+              timeInput.value = ''; // Clear the time
             }
           }
         });

@@ -118,6 +118,9 @@ Route::post('/dentist/appointments/{appointment}/completed', [DentistAppointment
 Route::post('/dentist/appointments/{appointment}/expired', [DentistAppointmentController::class, 'markAsExpired'])->name('dentist.appointments.expired');
 Route::post('/dentist/appointments/{appointment}/reject', [DentistAppointmentController::class, 'rejectAppointment'])->name('dentist.appointments.reject');
 
+//Patient Record View
+Route::get('/dentist/patient/{userId}/view-record', [DentistAppointmentController::class, 'viewPatientRecord'])->name('dentist.patient.view-record');
+
 //Admin Creation Routes
 Route::get('/dentist/account/create', [App\Http\Controllers\Dentist\AdminController::class, 'create'])->name('dentist.admin.create');
 Route::post('/dentist/account/create', [App\Http\Controllers\Dentist\AdminController::class, 'store'])->name('dentist.admin.store');
