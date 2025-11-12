@@ -4,6 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>Book Appointment - LC Happy Care Dental Clinic</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="/assets/css/styles.min.css?h=603e8133128ec3586bcc20713be67e15">
@@ -263,8 +264,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('modalFullName').textContent = `${firstName} ${middleName} ${lastName}`.trim();
 
     // Get date and time
-    let date = document.querySelector('input[type="date"]') ? document.querySelector('input[type="date"]').value : '';
-    let time = document.querySelector('input[type="time"]') ? document.querySelector('input[type="time"]').value : '';
+    let date = document.querySelector('input[name="appointment_sched"]') ? document.querySelector('input[name="appointment_sched"]').value : '';
+    let time = document.querySelector('input[name="appointment_time"]') ? document.querySelector('input[name="appointment_time"]').value : '';
     let scheduleText = 'Scheduled on: ';
     if (date && time) {
       // Format date as Month Day, Year
@@ -305,10 +306,48 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // Availability check function
+  async function checkAppointmentAvailability() {
+    const dateField = document.querySelector('input[name="appointment_sched"]');
+    const timeField = document.getElementById('appointment_time');
+    
+    if (!dateField || !timeField || !dateField.value || !timeField.value) {
+      return true; // If fields not filled, skip check
+    }
+
+    const appointmentDateTime = dateField.value + ' ' + timeField.value;
+    
+    try {
+      const response = await fetch('{{ route("registrant.appointments.check-availability") }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content || '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+          appointment_datetime: appointmentDateTime
+        })
+      });
+
+      const data = await response.json();
+      
+      if (!data.available) {
+        alert(data.message);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Availability check error:', error);
+      // On error, allow booking to proceed
+      return true;
+    }
+  }
+
   // Time validation for clinic hours (8:00 AM - 5:00 PM)
   const timeInput = document.getElementById('appointment_time');
   if (timeInput) {
-    timeInput.addEventListener('change', function() {
+    timeInput.addEventListener('change', async function() {
       const selectedTime = this.value;
       const [hours, minutes] = selectedTime.split(':').map(Number);
       const timeInMinutes = hours * 60 + minutes;
@@ -333,13 +372,17 @@ document.addEventListener('DOMContentLoaded', function() {
           alert('Appointment time cannot be in the past or current time. Please select a future date and time.');
           this.value = ''; // Clear the invalid time
           this.focus();
+          return;
         }
+
+        // Check availability
+        await checkAppointmentAvailability();
       }
     });
   }
 
   // Form submission validation
-  document.getElementById('appointmentForm').addEventListener('submit', function(e) {
+  document.getElementById('appointmentForm').addEventListener('submit', async function(e) {
     const timeField = document.getElementById('appointment_time');
     const dateField = document.querySelector('input[name="appointment_sched"]');
     
@@ -366,6 +409,17 @@ document.addEventListener('DOMContentLoaded', function() {
         alert('Appointment time cannot be in the past or current time. Please select a future date and time.');
         timeField.focus();
         return false;
+      }
+
+      // Check availability before submitting
+      e.preventDefault(); // Prevent default submission
+      const isAvailable = await checkAppointmentAvailability();
+      
+      if (isAvailable) {
+        // If available, submit the form
+        e.target.submit();
+      } else {
+        timeField.focus();
       }
     }
   });

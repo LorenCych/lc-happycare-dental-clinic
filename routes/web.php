@@ -86,6 +86,9 @@ Route::prefix('registrant')->name('registrant.')->group(function () {
     Route::post('/appointments/{appointment}/withdraw', [\App\Http\Controllers\Registrant\AppointmentController::class, 'withdraw'])->name('appointments.withdraw');
     Route::post('/appointments/{appointment}/reschedule', [\App\Http\Controllers\Registrant\AppointmentController::class, 'reschedule'])->name('appointments.reschedule');
     Route::get('/appointments/{appointmentId}/print-receipt', [\App\Http\Controllers\Registrant\AppointmentController::class, 'printReceipt'])->name('appointments.print-receipt');
+    
+    // Appointment availability check API
+    Route::post('/appointments/check-availability', [\App\Http\Controllers\Registrant\AppointmentController::class, 'checkAvailability'])->name('appointments.check-availability');
 });
 
 

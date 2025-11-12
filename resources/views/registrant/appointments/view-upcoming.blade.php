@@ -4,6 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>Upcoming Appointments - LC Happy Care Dental Clinic</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="/assets/css/styles.min.css?h=603e8133128ec3586bcc20713be67e15">
@@ -222,6 +223,41 @@
 
     // Time validation for reschedule forms
     document.addEventListener('DOMContentLoaded', function() {
+      // Availability check function for reschedule
+      async function checkRescheduleAvailability(appointmentId, dateValue, timeValue) {
+        if (!dateValue || !timeValue) {
+          return true;
+        }
+
+        const appointmentDateTime = dateValue + ' ' + timeValue;
+        
+        try {
+          const response = await fetch('{{ route("registrant.appointments.check-availability") }}', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content || '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({
+              appointment_datetime: appointmentDateTime,
+              current_appointment_id: appointmentId
+            })
+          });
+
+          const data = await response.json();
+          
+          if (!data.available) {
+            alert(data.message);
+            return false;
+          }
+          
+          return true;
+        } catch (error) {
+          console.error('Availability check error:', error);
+          return true; // On error, allow rescheduling to proceed
+        }
+      }
+
       // Set minimum date to today for all reschedule date inputs
       const today = new Date().toISOString().split('T')[0];
       const dateInputs = document.querySelectorAll('input[id^="new_date"]');
@@ -232,7 +268,9 @@
       const rescheduleFormsSelectors = document.querySelectorAll('form[id^="rescheduleForm"]');
       
       rescheduleFormsSelectors.forEach(form => {
-        form.addEventListener('submit', function(e) {
+        form.addEventListener('submit', async function(e) {
+          e.preventDefault(); // Prevent default submission initially
+          
           const appointmentId = form.id.replace('rescheduleForm', '');
           const timeInput = document.getElementById('new_time' + appointmentId);
           const dateInput = document.getElementById('new_date' + appointmentId);
@@ -247,7 +285,6 @@
             const clinicEnd = 17 * 60;  // 5:00 PM in minutes
             
             if (totalMinutes < clinicStart || totalMinutes > clinicEnd) {
-              e.preventDefault();
               alert('Please select a time between 8:00 AM and 5:00 PM. Our clinic operates within these hours.');
               timeInput.focus();
               return false;
@@ -258,8 +295,14 @@
             const now = new Date();
             
             if (selectedDateTime <= now) {
-              e.preventDefault();
               alert('Appointment time cannot be in the past or current time. Please select a future date and time.');
+              timeInput.focus();
+              return false;
+            }
+
+            // Check availability
+            const isAvailable = await checkRescheduleAvailability(appointmentId, dateInput.value, timeInput.value);
+            if (!isAvailable) {
               timeInput.focus();
               return false;
             }
@@ -272,19 +315,21 @@
             today.setHours(0, 0, 0, 0); // Reset time to start of day for fair comparison
             
             if (selectedDate < today) {
-              e.preventDefault();
               alert('Please select a future date for your appointment.');
               dateInput.focus();
               return false;
             }
           }
+
+          // All validations passed, submit the form
+          form.submit();
         });
       });
 
       // Add real-time validation for time inputs in reschedule modals
       const timeInputs = document.querySelectorAll('input[id^="new_time"]');
       timeInputs.forEach(timeInput => {
-        timeInput.addEventListener('change', function() {
+        timeInput.addEventListener('change', async function() {
           const appointmentId = this.id.replace('new_time', '');
           const dateInput = document.getElementById('new_date' + appointmentId);
           
@@ -308,7 +353,11 @@
               if (selectedDateTime <= now) {
                 alert('Appointment time cannot be in the past or current time. Please select a future date and time.');
                 this.value = '';
+                return;
               }
+
+              // Check availability
+              await checkRescheduleAvailability(appointmentId, dateInput.value, this.value);
             }
           }
         });

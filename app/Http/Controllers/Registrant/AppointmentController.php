@@ -272,6 +272,20 @@ class AppointmentController extends Controller
             return back()->withErrors(['appointment_time' => 'Appointment time cannot be in the past or current time. Please select a future date and time.'])->withInput();
         }
 
+        // Check if time slot is available (server-side validation)
+        $timeSlotBuffer = 30; // minutes
+        $startWindow = $appointmentDateTime->copy()->subMinutes($timeSlotBuffer);
+        $endWindow = $appointmentDateTime->copy()->addMinutes($timeSlotBuffer);
+        
+        $conflictingAppointments = \App\Models\Appointment::whereBetween('appointment_sched', [$startWindow, $endWindow])
+            ->whereIn('status', ['pending', 'approved', 'confirmed'])
+            ->count();
+        
+        $maxConcurrentAppointments = 3;
+        if ($conflictingAppointments >= $maxConcurrentAppointments) {
+            return back()->withErrors(['appointment_time' => 'This time slot is currently busy. Please choose a different time.'])->withInput();
+        }
+
         $validated['status'] = 'pending';
         $serviceIds = $validated['service_id'];
         unset($validated['service_id']);
@@ -385,6 +399,21 @@ class AppointmentController extends Controller
             return back()->withErrors(['new_time' => 'Appointment time cannot be in the past or current time. Please select a future date and time.'])->withInput();
         }
 
+        // Check if time slot is available (server-side validation)
+        $timeSlotBuffer = 30; // minutes
+        $startWindow = $appointmentDateTime->copy()->subMinutes($timeSlotBuffer);
+        $endWindow = $appointmentDateTime->copy()->addMinutes($timeSlotBuffer);
+        
+        $conflictingAppointments = \App\Models\Appointment::whereBetween('appointment_sched', [$startWindow, $endWindow])
+            ->whereIn('status', ['pending', 'approved', 'confirmed'])
+            ->where('id', '!=', $appointment) // Exclude current appointment
+            ->count();
+        
+        $maxConcurrentAppointments = 3;
+        if ($conflictingAppointments >= $maxConcurrentAppointments) {
+            return back()->withErrors(['new_time' => 'This time slot is currently busy. Please choose a different time.'])->withInput();
+        }
+
         // Store the old schedule for logging/notification
         $oldSchedule = $appointmentObj->appointment_sched;
         
@@ -447,5 +476,86 @@ class AppointmentController extends Controller
         
         // Return PDF for download
         return $pdf->download($filename);
+    }
+
+    /**
+     * Check if appointment time slot is available
+     */
+    public function checkAvailability(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'appointment_datetime' => 'required|date',
+                'current_appointment_id' => 'nullable|string', // For rescheduling - exclude current appointment
+            ]);
+
+            $appointmentDateTime = \Carbon\Carbon::parse($validated['appointment_datetime']);
+            
+            // Define time slot window (e.g., appointments within 30 minutes are considered conflicting)
+            $timeSlotBuffer = 30; // minutes
+            $startWindow = $appointmentDateTime->copy()->subMinutes($timeSlotBuffer);
+            $endWindow = $appointmentDateTime->copy()->addMinutes($timeSlotBuffer);
+
+            // Query for conflicting appointments
+            $query = \App\Models\Appointment::where(function($q) use ($startWindow, $endWindow) {
+                $q->whereBetween('appointment_sched', [$startWindow, $endWindow]);
+            })
+            ->whereIn('status', ['pending', 'approved', 'confirmed']); // Only check active appointments
+
+            // Exclude current appointment if rescheduling
+            if (!empty($validated['current_appointment_id'])) {
+                $query->where('id', '!=', $validated['current_appointment_id']);
+            }
+
+            $conflictingAppointments = $query->count();
+
+            // Consider a slot "busy" if there are 3 or more appointments within the time window
+            $maxConcurrentAppointments = 3;
+            $isAvailable = $conflictingAppointments < $maxConcurrentAppointments;
+
+            return response()->json([
+                'available' => $isAvailable,
+                'conflicting_count' => $conflictingAppointments,
+                'max_allowed' => $maxConcurrentAppointments,
+                'message' => $isAvailable 
+                    ? 'Time slot is available.' 
+                    : "This time slot is currently busy. There are already {$conflictingAppointments} appointments scheduled around this time. Please choose a different time.",
+                'suggested_times' => !$isAvailable ? $this->suggestAlternativeTimes($appointmentDateTime) : []
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Availability check failed: ' . $e->getMessage());
+            return response()->json([
+                'available' => true, // Default to available on error to not block users
+                'error' => 'Unable to check availability at this time.',
+                'message' => 'Availability check unavailable. You may proceed with booking.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Suggest alternative appointment times
+     */
+    private function suggestAlternativeTimes($requestedDateTime)
+    {
+        $suggestions = [];
+        $baseDate = $requestedDateTime->copy();
+        
+        // Suggest 3 alternative times on the same day
+        $timesToCheck = [
+            $baseDate->copy()->addHours(1),
+            $baseDate->copy()->addHours(2),
+            $baseDate->copy()->subHours(1),
+        ];
+
+        foreach ($timesToCheck as $time) {
+            // Check if time is within clinic hours (8 AM - 5 PM)
+            $hour = $time->hour;
+            if ($hour >= 8 && $hour < 17 && $time->isFuture()) {
+                $suggestions[] = $time->format('Y-m-d H:i:s');
+            }
+        }
+
+        return array_slice($suggestions, 0, 3); // Return up to 3 suggestions
     }
 }
