@@ -21,7 +21,7 @@
               </path>
             </svg>
           </span>
-          <span><strong>LC HAPPY CARE</strong></span>
+          <span class="fs-6">LC HAPPY CARE</span>
         </a>
       </div>
 
