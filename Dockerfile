@@ -32,7 +32,8 @@ COPY . /var/www/html
 COPY --chown=www-data:www-data . /var/www/html
 
 # Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader
+RUN composer install --no-dev --optimize-autoloader --no-scripts \
+    && composer dump-autoload --optimize
 
 # Create storage directories and set permissions
 RUN mkdir -p storage/framework/cache/data \
