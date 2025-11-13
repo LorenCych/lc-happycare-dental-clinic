@@ -250,12 +250,20 @@ class AppointmentController extends Controller
             'appointee_name' => 'required|string|max:255',
             'appointment_sched' => 'required|date',
             'user_id' => 'required|string|exists:users,id',
-            'service_id' => 'required|array',
+            // service_id is optional if other_services is provided
+            'service_id' => 'nullable|array',
             'service_id.*' => 'string|exists:services,id',
             'other_services' => 'nullable|string|max:500',
             //'dentist_id' => 'required|string|exists:admins,id',
             'status' => 'nullable|string|max:50',
         ]);
+
+        // Ensure at least one service is selected OR other_services is provided
+        $hasServiceIds = isset($validated['service_id']) && is_array($validated['service_id']) && count($validated['service_id']) > 0;
+        $hasOtherServices = isset($validated['other_services']) && trim($validated['other_services']) !== '';
+        if (! $hasServiceIds && ! $hasOtherServices) {
+            return back()->withErrors(['service_id' => 'Please select at least one service or enter an "Other" service.'])->withInput();
+        }
 
         // Validate clinic hours (8:00 AM - 5:00 PM)
         $appointmentDateTime = \Carbon\Carbon::parse($validated['appointment_sched']);
@@ -287,11 +295,13 @@ class AppointmentController extends Controller
         }
 
         $validated['status'] = 'pending';
-        $serviceIds = $validated['service_id'];
+        $serviceIds = $validated['service_id'] ?? [];
         unset($validated['service_id']);
 
         $appointment = \App\Models\Appointment::create($validated);
-        $appointment->services()->attach($serviceIds);
+        if (! empty($serviceIds)) {
+            $appointment->services()->attach($serviceIds);
+        }
 
         // Send SMS notification to patient
         $user = \App\Models\User::find($validated['user_id']);
@@ -490,6 +500,16 @@ class AppointmentController extends Controller
             ]);
 
             $appointmentDateTime = \Carbon\Carbon::parse($validated['appointment_datetime']);
+            // Reject times that are in the past or equal to now
+            if ($appointmentDateTime->lte(now())) {
+                return response()->json([
+                    'available' => false,
+                    'conflicting_count' => 0,
+                    'max_allowed' => 0,
+                    'message' => 'Selected time is in the past or current time. Please choose a future time.' ,
+                    'suggested_times' => $this->suggestAlternativeTimes($appointmentDateTime)
+                ], 200);
+            }
             
             // Define time slot window (e.g., appointments within 30 minutes are considered conflicting)
             $timeSlotBuffer = 30; // minutes
@@ -531,6 +551,68 @@ class AppointmentController extends Controller
                 'message' => 'Availability check unavailable. You may proceed with booking.'
             ], 500);
         }
+    }
+
+    /**
+     * Return appointments for a given day (used by client-side calendar to visualize occupied slots)
+     */
+    public function daySchedule(Request $request)
+    {
+        $validated = $request->validate([
+            'date' => 'required|date',
+        ]);
+
+        $date = \Carbon\Carbon::parse($validated['date'])->startOfDay();
+        $start = $date->copy();
+        $end = $date->copy()->endOfDay();
+
+        $appointments = \App\Models\Appointment::whereBetween('appointment_sched', [$start, $end])
+            ->whereIn('status', ['pending', 'approved', 'confirmed'])
+            ->orderBy('appointment_sched', 'asc')
+            ->get(['id', 'appointment_sched', 'user_id']);
+
+        // Calculate slot occupancy using the same ±30-minute logic as availability check
+        $timeSlotBuffer = 30; // minutes
+        $maxConcurrentAppointments = 3;
+        $slotOccupancy = [];
+
+        // Generate 30-minute slots from 08:00 to 17:00
+        for ($h = 8; $h <= 16; $h++) {
+            foreach (['00', '30'] as $m) {
+                $slotTime = sprintf('%02d:%s', $h, $m);
+                $slotDateTime = $date->copy()->setTimeFromTimeString($slotTime);
+                
+                $startWindow = $slotDateTime->copy()->subMinutes($timeSlotBuffer);
+                $endWindow = $slotDateTime->copy()->addMinutes($timeSlotBuffer);
+                
+                $conflictCount = $appointments->filter(function ($appointment) use ($startWindow, $endWindow) {
+                    $appointmentTime = \Carbon\Carbon::parse($appointment->appointment_sched);
+                    return $appointmentTime->between($startWindow, $endWindow);
+                })->count();
+                
+                $slotOccupancy[$slotTime] = [
+                    'count' => $conflictCount,
+                    'available' => $conflictCount < $maxConcurrentAppointments,
+                ];
+            }
+        }
+        // Add 17:00 slot
+        $slotDateTime = $date->copy()->setTimeFromTimeString('17:00');
+        $startWindow = $slotDateTime->copy()->subMinutes($timeSlotBuffer);
+        $endWindow = $slotDateTime->copy()->addMinutes($timeSlotBuffer);
+        $conflictCount = $appointments->filter(function ($appointment) use ($startWindow, $endWindow) {
+            $appointmentTime = \Carbon\Carbon::parse($appointment->appointment_sched);
+            return $appointmentTime->between($startWindow, $endWindow);
+        })->count();
+        $slotOccupancy['17:00'] = [
+            'count' => $conflictCount,
+            'available' => $conflictCount < $maxConcurrentAppointments,
+        ];
+
+        return response()->json([
+            'date' => $date->toDateString(),
+            'slot_occupancy' => $slotOccupancy,
+        ]);
     }
 
     /**

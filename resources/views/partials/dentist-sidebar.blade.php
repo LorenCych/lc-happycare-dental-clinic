@@ -78,6 +78,17 @@
                 d="m13.498.795.149-.149a1.207 1.207 0 1 1 1.707 1.708l-.149.148a1.5 1.5 0 0 1-.059 2.059L4.854 14.854a.5.5 0 0 1-.233.131l-4 1a.5.5 0 0 1-.606-.606l1-4a.5.5 0 0 1 .131-.232l9.642-9.642a.5.5 0 0 0-.642.056L6.854 4.854a.5.5 0 1 1-.708-.708L9.44.854A1.5 1.5 0 0 1 11.5.796a1.5 1.5 0 0 1 1.998-.001">
               </path>
             </svg></a>
+            
+            @if ($admin && $admin->role_level != 3)
+            <a class="nav-link link-primary rounded-0 py-3 border-bottom" data-bs-toggle="tooltip"
+            data-bss-tooltip="" href="{{ route('dentist.patients.records') }}" title="Patient Records"><svg
+              xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" fill="currentColor" viewBox="0 0 16 16"
+              class="bi bi-person-lines-fill fs-4">
+              <path
+                d="M6 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m-5 6s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zM11 3.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5m.5 2.5a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1zm2 3a.5.5 0 0 0 0 1h2a.5.5 0 0 0 0-1zm0 3a.5.5 0 0 0 0 1h2a.5.5 0 0 0 0-1z">
+              </path>
+            </svg></a>
+            @endif
             </li>
         <li class="nav-item"><a class="nav-link py-3 border-bottom rounded-0" data-bs-toggle="tooltip"
             data-bss-tooltip="" href="{{ route('dentist.account.manage') }}" title="Manage Profile"><svg
@@ -113,6 +124,7 @@
         <div class="dropdown-menu shadow position-absolute z-3" data-popper-placement="top-start">
               @if ($admin && $admin->role_level != 3)
           <a class="dropdown-item" href="{{ route('dentist.appointments.assigned') }}">View My Appointments</a>
+          <a class="dropdown-item" href="{{ route('dentist.patients.records') }}">Patient Records</a>
             @endif
             <a class="dropdown-item" href="{{ route('dentist.account.manage') }}">Manage Profile</a>
           <div class="dropdown-divider"></div>

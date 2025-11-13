@@ -666,4 +666,54 @@ class AppointmentController extends Controller
 
         return view('dentist.patient.view-record', compact('dentist', 'patient', 'appointments'));
     }
+
+    /**
+     * View patient records alphabetically ordered by name
+     */
+    public function viewPatientRecords(Request $request)
+    {
+        $adminId = session('admin_id');
+        
+        if (!$adminId) {
+            return redirect()->route('home.admin-login')->with('error', 'Please log in to access this page.');
+        }
+
+        $dentist = \App\Models\Admin::find($adminId);
+        if (!$dentist) {
+            return redirect()->route('home.admin-login')->with('error', 'Admin not found.');
+        }
+
+        // Get all appointments assigned to this dentist with patient information
+        $query = \App\Models\Appointment::with(['user', 'services'])
+            ->where('dentist_id', $adminId)
+            ->whereIn('status', ['assigned', 'approved', 'confirmed', 'completed']);
+
+        // Apply search filter if provided
+        if ($request->filled('search')) {
+            $searchTerm = $request->input('search');
+            $query->whereHas('user', function($userQuery) use ($searchTerm) {
+                $userQuery->where('first_name', 'ILIKE', '%' . $searchTerm . '%')
+                         ->orWhere('last_name', 'ILIKE', '%' . $searchTerm . '%')
+                         ->orWhere('middle_name', 'ILIKE', '%' . $searchTerm . '%')
+                         ->orWhereRaw("CONCAT(first_name, ' ', last_name) ILIKE ?", ['%' . $searchTerm . '%'])
+                         ->orWhereRaw("CONCAT(first_name, ' ', middle_name, ' ', last_name) ILIKE ?", ['%' . $searchTerm . '%']);
+            });
+        }
+
+        $appointments = $query->get();
+
+        // Group appointments by patient and sort alphabetically by patient name
+        $patientRecords = $appointments->groupBy('user_id')->map(function ($patientAppointments) {
+            $user = $patientAppointments->first()->user;
+            return [
+                'user' => $user,
+                'full_name' => trim($user->first_name . ' ' . ($user->middle_name ? $user->middle_name . ' ' : '') . $user->last_name),
+                'appointments' => $patientAppointments->sortByDesc('appointment_sched'),
+                'total_appointments' => $patientAppointments->count(),
+                'last_appointment' => $patientAppointments->sortByDesc('appointment_sched')->first(),
+            ];
+        })->sortBy('full_name');
+
+        return view('dentist.patients.records', compact('dentist', 'patientRecords'));
+    }
 }

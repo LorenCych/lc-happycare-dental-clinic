@@ -8,6 +8,75 @@
   <title>Book Appointment - LC Happy Care Dental Clinic</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="/assets/css/styles.min.css?h=603e8133128ec3586bcc20713be67e15">
+  <style>
+    /* Time calendar grid styling */
+    #dailyCalendar { 
+      display: grid; 
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
+      gap: 12px; 
+      max-width: 100%; 
+      margin-top: 10px; 
+    }
+    .calendar-slot { 
+      min-height: 80px; 
+      padding: 12px 8px; 
+      border-radius: 8px; 
+      border: 2px solid #dee2e6; 
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); 
+      text-align: center; 
+      cursor: pointer; 
+      font-size: 1rem; 
+      font-weight: 500;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .calendar-slot:hover:not(.past):not(.occupied) { 
+      transform: translateY(-2px); 
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15); 
+      border-color: #0d6efd; 
+    }
+    .calendar-slot.occupied { 
+      background: linear-gradient(135deg, #f8d7da 0%, #f1aeb5 100%); 
+      border-color: #dc3545; 
+      color: #721c24; 
+      cursor: not-allowed; 
+    }
+    .calendar-slot.selected { 
+      background: linear-gradient(135deg, #cfe2ff 0%, #9ec5fe 100%); 
+      border-color: #0d6efd; 
+      color: #084298;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+    }
+    .calendar-slot.past { 
+      background: linear-gradient(135deg, #e9ecef 0%, #d3d3d4 100%); 
+      color: #6c757d; 
+      cursor: not-allowed; 
+      opacity: 0.7;
+    }
+    .slot-time {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .slot-info {
+      font-size: 0.75rem;
+      font-weight: 400;
+      opacity: 0.8;
+      margin-top: 4px;
+      line-height: 1.2;
+    }
+    .calendar-slot.occupied .slot-info {
+      color: #721c24;
+      font-weight: 500;
+    }
+    .calendar-slot.past .slot-info {
+      color: #6c757d;
+    }
+  </style>
 </head>
 
 <body>
@@ -218,6 +287,14 @@
                     class="form-label d-flex d-sm-flex justify-content-start justify-content-sm-start"
                     for="appointment_time">Time</label><input class="border-dark-subtle form-control" type="time" id="appointment_time" name="appointment_time" min="08:00" max="17:00" required></div>
               </div>
+              
+              <!-- Daily timeline calendar -->
+              <div class="row mb-3">
+                <div class="col-12">
+                  <h6 class="text-black-50">Availability for <span id="calendarDateDisplay"></span></h6>
+                  <div id="dailyCalendar" aria-live="polite" role="list"></div>
+                </div>
+              </div>
               <div class="row gy-2 mt-4 mb-3">
                 <div class="col-12 col-sm-12 col-lg-6 col-xl-6 d-flex flex-grow-0"><button class="btn btn-light w-100"
                     type="button" id="clearBtn">Clear</button></div>
@@ -239,7 +316,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('reviewAppointmentBtn').addEventListener('click', function() {
-    // Get selected service IDs and map to names
+    // Get selected service IDs and map to names. Prefer showing 'Other' text if provided.
     let serviceNames = [];
     document.querySelectorAll('input[name="service_id[]"]:checked').forEach(function(checkbox) {
       let label = document.querySelector(`label[for='${checkbox.id}']`);
@@ -247,14 +324,12 @@ document.addEventListener('DOMContentLoaded', function() {
         serviceNames.push(label.textContent.trim());
       }
     });
-    let otherServices = document.getElementById('other_services') ? document.getElementById('other_services').value : '';
-    let servicesText = serviceNames.length ? serviceNames.join(', ') : 'No Service Selected';
-    if (otherServices) {
-      servicesText += (serviceNames.length ? ', ' : '') + otherServices;
-    }
-    if (!serviceNames.length && !otherServices) {
-      servicesText = 'No Service Selected';
-    }
+    let otherServices = document.getElementById('other_services') ? document.getElementById('other_services').value.trim() : '';
+    // Build display array and avoid showing 'No Service Selected' when an "other" value exists
+    let displayServices = [];
+    if (serviceNames.length) displayServices = displayServices.concat(serviceNames);
+    if (otherServices) displayServices.push(otherServices);
+    let servicesText = displayServices.length ? displayServices.join(', ') : 'No Service Selected';
     document.getElementById('modalServices').textContent = servicesText;
 
     // Get full name
@@ -268,10 +343,13 @@ document.addEventListener('DOMContentLoaded', function() {
     let time = document.querySelector('input[name="appointment_time"]') ? document.querySelector('input[name="appointment_time"]').value : '';
     let scheduleText = 'Scheduled on: ';
     if (date && time) {
-      // Format date as Month Day, Year
-      let d = new Date(date);
-      let options = { year: 'numeric', month: 'long', day: 'numeric' };
-      scheduleText += `${d.toLocaleDateString(undefined, options)} at ${time}`;
+  // Format date as 'Month Day, Year' (e.g. November 13, 2025)
+  const dt = new Date(date);
+  const opts = { year: 'numeric', month: 'long', day: 'numeric' };
+  const formattedDate = dt.toLocaleDateString(undefined, opts);
+      // Format time as 12-hour with AM/PM
+      const formattedTime = typeof formatTo12Hour === 'function' ? formatTo12Hour(time) : time;
+      scheduleText += `${formattedDate} at ${formattedTime}`;
     } else {
       scheduleText += 'Not set';
     }
@@ -303,6 +381,126 @@ document.addEventListener('DOMContentLoaded', function() {
           timeField.value = ''; // Clear the time
         }
       }
+    });
+  }
+
+  // Daily calendar rendering
+  const dailyCalendar = document.getElementById('dailyCalendar');
+  const calendarDateDisplay = document.getElementById('calendarDateDisplay');
+  const dayScheduleUrl = '{{ route("registrant.appointments.day-schedule") }}';
+
+  function formatTimeHHMM(date) {
+    const h = String(date.getHours()).padStart(2, '0');
+    const m = String(date.getMinutes()).padStart(2, '0');
+    return `${h}:${m}`;
+  }
+
+  // format 'HH:MM' -> 'h:mm AM/PM'
+  function formatTo12Hour(hhmm) {
+    const [hh, mm] = hhmm.split(':').map(Number);
+    const period = hh >= 12 ? 'PM' : 'AM';
+    const hour12 = ((hh + 11) % 12) + 1; // convert 0->12
+    return `${hour12}:${String(mm).padStart(2,'0')} ${period}`;
+  }
+
+  async function renderDailyCalendar(dateStr) {
+    if (!dailyCalendar) return;
+    // show date as 'Month Day, Year' (e.g. November 13, 2025)
+    if (dateStr) {
+      const dt = new Date(dateStr);
+      const opts = { year: 'numeric', month: 'long', day: 'numeric' };
+      calendarDateDisplay.textContent = dt.toLocaleDateString(undefined, opts);
+    } else {
+      calendarDateDisplay.textContent = '';
+    }
+    dailyCalendar.innerHTML = '';
+
+    // build slot list from 08:00 to 16:30 (30-min increments)
+    const slots = [];
+    for (let h = 8; h <= 16; h++) {
+      slots.push(`${String(h).padStart(2,'0')}:00`);
+      slots.push(`${String(h).padStart(2,'0')}:30`);
+    }
+    // include 17:00 as last slot
+    slots.push('17:00');
+
+    // fetch appointments for the day
+    let slotOccupancy = {};
+    try {
+      const resp = await fetch(dayScheduleUrl + '?date=' + encodeURIComponent(dateStr), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      if (resp.ok) {
+        const json = await resp.json();
+        slotOccupancy = json.slot_occupancy || {};
+      }
+    } catch (err) {
+      console.error('Day schedule fetch error', err);
+    }
+
+    const now = new Date();
+    slots.forEach(slot => {
+      const div = document.createElement('div');
+      div.className = 'calendar-slot';
+      div.setAttribute('role', 'button');
+      div.dataset.time = slot;
+      
+      // Create time display
+      const timeDiv = document.createElement('div');
+      timeDiv.className = 'slot-time';
+      timeDiv.textContent = formatTo12Hour(slot);
+      
+      // Create info display  
+      const infoDiv = document.createElement('div');
+      infoDiv.className = 'slot-info';
+      
+      // mark past slots (only when calendar date is today)
+      let slotDateTime = null;
+      if (dateStr) {
+        slotDateTime = new Date(dateStr + ' ' + slot);
+      }
+      
+      const slotData = slotOccupancy[slot];
+      if (slotDateTime && slotDateTime <= now) {
+        div.classList.add('past');
+        div.title = 'Past time';
+        infoDiv.textContent = 'Past';
+      } else if (slotData && !slotData.available) {
+        div.classList.add('occupied');
+        div.title = `Occupied (${slotData.count}/3 appointments)`;
+        infoDiv.textContent = `Full (${slotData.count}/3)`;
+      } else {
+        // Show appointment count for available slots
+        const count = slotData ? slotData.count : 0;
+        infoDiv.textContent = count === 0 ? 'Available' : `${count}/3 booked`;
+        if (slotData && slotData.count > 0) {
+          div.title = `Available (${slotData.count}/3 appointments)`;
+        } else {
+          div.title = 'Available - click to select';
+        }
+        
+        div.addEventListener('click', function() {
+          // prevent selecting past/occupied slots
+          if (this.classList.contains('past') || this.classList.contains('occupied')) return;
+          // set time input and highlight selected
+          document.querySelectorAll('.calendar-slot.selected').forEach(s => s.classList.remove('selected'));
+          this.classList.add('selected');
+          const timeInput = document.getElementById('appointment_time');
+          if (timeInput) timeInput.value = this.dataset.time;
+        });
+      }
+      
+      div.appendChild(timeDiv);
+      div.appendChild(infoDiv);
+      dailyCalendar.appendChild(div);
+    });
+  }
+
+  // initial render
+  if (dateInput) {
+    const today = new Date().toISOString().split('T')[0];
+    if (!dateInput.value) dateInput.value = today;
+    renderDailyCalendar(dateInput.value);
+    dateInput.addEventListener('change', function() {
+      renderDailyCalendar(this.value);
     });
   }
 

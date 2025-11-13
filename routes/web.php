@@ -85,6 +85,8 @@ Route::prefix('registrant')->name('registrant.')->group(function () {
     Route::post('/appointments/create', [\App\Http\Controllers\Registrant\AppointmentController::class, 'create'])->name('appointments.create');
     Route::post('/appointments/{appointment}/withdraw', [\App\Http\Controllers\Registrant\AppointmentController::class, 'withdraw'])->name('appointments.withdraw');
     Route::post('/appointments/{appointment}/reschedule', [\App\Http\Controllers\Registrant\AppointmentController::class, 'reschedule'])->name('appointments.reschedule');
+    // Day schedule (appointments for a specific date) - used by client-side calendar
+    Route::get('/appointments/day-schedule', [\App\Http\Controllers\Registrant\AppointmentController::class, 'daySchedule'])->name('appointments.day-schedule');
     Route::get('/appointments/{appointmentId}/print-receipt', [\App\Http\Controllers\Registrant\AppointmentController::class, 'printReceipt'])->name('appointments.print-receipt');
     
     // Appointment availability check API
@@ -112,6 +114,7 @@ Route::get('/admin/login', [App\Http\Controllers\Dentist\AccountController::clas
 Route::get('/dentist/appointments/assigned', [DentistAppointmentController::class, 'viewAssignedAppointments'])->name('dentist.appointments.assigned');
 Route::get('/dentist/appointments/unassigned', [DentistAppointmentController::class, 'viewUnassignedAppointments'])->name('dentist.appointments.unassigned');
 Route::get('/dentist/appointments/previous', [DentistAppointmentController::class, 'viewPreviousAppointments'])->name('dentist.appointments.previous');
+Route::get('/dentist/patients/records', [DentistAppointmentController::class, 'viewPatientRecords'])->name('dentist.patients.records');
 Route::post('/admin/login', [App\Http\Controllers\Dentist\AccountController::class, 'login'])->name('dentist.login');
 Route::post('/dentist/appointments/{appointment}/claim', [DentistAppointmentController::class, 'claimAppointment'])->name('dentist.appointments.claim');
 Route::post('/dentist/appointments/{appointment}/unassign', [DentistAppointmentController::class, 'unassignAppointment'])->name('dentist.appointments.unassign');
